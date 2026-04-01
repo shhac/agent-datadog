@@ -6,6 +6,7 @@ import (
 	"os"
 
 	agenterrors "github.com/shhac/agent-dd/internal/errors"
+	"gopkg.in/yaml.v3"
 )
 
 type Format string
@@ -29,18 +30,32 @@ func ParseFormat(s string) (Format, error) {
 	}
 }
 
-func ResolveFormat(flagFormat string) Format {
-	if flagFormat != "" {
-		f, err := ParseFormat(flagFormat)
-		if err != nil {
-			return FormatJSON
-		}
-		return f
+func ResolveFormat(flagFormat string, defaultFormat Format) Format {
+	if flagFormat == "" {
+		return defaultFormat
 	}
-	return FormatJSON
+	f, err := ParseFormat(flagFormat)
+	if err != nil {
+		return defaultFormat
+	}
+	return f
 }
 
+func Print(data any, format Format, prune bool) {
+	switch format {
+	case FormatYAML:
+		printYAML(data, prune)
+	default:
+		printJSON(data, prune)
+	}
+}
+
+// PrintJSON is a convenience wrapper for JSON output.
 func PrintJSON(data any, prune bool) {
+	printJSON(data, prune)
+}
+
+func printJSON(data any, prune bool) {
 	b, err := json.Marshal(data)
 	if err != nil {
 		return
@@ -59,6 +74,23 @@ func PrintJSON(data any, prune bool) {
 		enc.SetEscapeHTML(false)
 		enc.Encode(indented)
 	}
+}
+
+func printYAML(data any, prune bool) {
+	b, err := json.Marshal(data)
+	if err != nil {
+		return
+	}
+	var m any
+	if err := json.Unmarshal(b, &m); err != nil {
+		return
+	}
+	if prune {
+		m = pruneNulls(m)
+	}
+	enc := yaml.NewEncoder(os.Stdout)
+	enc.SetIndent(2)
+	enc.Encode(m)
 }
 
 func WriteError(w io.Writer, err error) {

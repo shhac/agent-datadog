@@ -2,7 +2,7 @@
 
 Datadog triage CLI for AI agents. Investigation workflows — monitors, logs, metrics, traces, incidents, SLOs — not full Datadog administration.
 
-- **Token-efficient output** — compact JSON by default, null-pruned, designed for LLM context windows. `--full` for complete API responses
+- **Token-efficient output** — NDJSON for lists, JSON for single items, YAML available. Compact and null-pruned by default. `--full` for complete API responses
 - **Structured error classification** — every error includes `fixable_by: agent|human|retry` so AI agents can self-correct without parsing messages
 - **Triage-focused** — only the commands you need during an investigation, not the 200+ Datadog API endpoints
 - **Multi-org support** — switch between Datadog organizations with `--org`, credentials stored in macOS Keychain
@@ -90,8 +90,9 @@ agent-dd
 
 ## Output
 
-- **stdout** — structured JSON (default), NDJSON (`--format jsonl`)
+- **stdout** — NDJSON for list/search commands (one object per line), JSON for single-item commands
 - **stderr** — errors as JSON with `fixable_by` classification
+- **`--format json|yaml|jsonl`** — override the default for any command
 - **Compact by default** — e.g. monitors show `id, name, status, type`. Use `--full` for everything
 - **Null-pruned** — empty/null fields stripped from output to save tokens
 

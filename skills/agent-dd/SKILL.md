@@ -77,7 +77,7 @@ For full operator reference (wildcards, booleans, numeric comparisons, facets): 
 ## Key Concepts
 
 - **Time formats**: relative (`now-15m`, `now-1h`, `now-7d`), RFC3339, or unix epoch. Defaults: `--from now-1h`, `--to now`
-- **Output**: compact JSON by default. `--full` for complete API response. `--format jsonl` for NDJSON
+- **Output**: NDJSON for list/search commands, JSON for single items. `--full` for complete API response. `--format json|yaml|jsonl` to override
 - **Monitor statuses**: `ok`, `alert`, `warn`, `no_data`, `unknown`
 - **Incident severities**: `SEV-1` (critical) through `SEV-5` (informational)
 - **Incident statuses**: `active`, `stable`, `resolved`

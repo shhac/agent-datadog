@@ -182,7 +182,7 @@ func registerFacets(parent *cobra.Command, globals func() *shared.GlobalFlags) {
 				if err != nil {
 					return err
 				}
-				output.PrintJSON(resp.Data.Buckets, true)
+				shared.WriteItem(resp.Data.Buckets, g.Format)
 				return nil
 			})
 		},

@@ -121,7 +121,7 @@ func ToAnySlice[T any](s []T) []any {
 }
 
 func WritePaginatedList(items []any, pagination *output.Pagination, format string) {
-	f := output.ResolveFormat(format)
+	f := output.ResolveFormat(format, output.FormatNDJSON)
 	if f == output.FormatNDJSON {
 		w := output.NewNDJSONWriter(os.Stdout)
 		for _, item := range items {
@@ -136,7 +136,13 @@ func WritePaginatedList(items []any, pagination *output.Pagination, format strin
 	if pagination != nil {
 		result["pagination"] = pagination
 	}
-	output.PrintJSON(result, true)
+	output.Print(result, f, true)
+}
+
+// WriteItem writes a single item in the resolved format (default: JSON).
+func WriteItem(data any, format string) {
+	f := output.ResolveFormat(format, output.FormatJSON)
+	output.Print(data, f, true)
 }
 
 type GlobalsFunc = func() *GlobalFlags

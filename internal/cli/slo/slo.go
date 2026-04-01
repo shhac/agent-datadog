@@ -77,7 +77,7 @@ func registerGet(parent *cobra.Command, globals func() *shared.GlobalFlags) {
 				if err != nil {
 					return err
 				}
-				output.PrintJSON(s, true)
+				shared.WriteItem(s, g.Format)
 				return nil
 			})
 		},
@@ -112,7 +112,7 @@ func registerHistory(parent *cobra.Command, globals func() *shared.GlobalFlags) 
 				if err != nil {
 					return err
 				}
-				output.PrintJSON(history, true)
+				shared.WriteItem(history, g.Format)
 				return nil
 			})
 		},

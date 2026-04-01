@@ -92,7 +92,7 @@ func registerGet(parent *cobra.Command, globals func() *shared.GlobalFlags) {
 				if err != nil {
 					return err
 				}
-				output.PrintJSON(monitor, true)
+				shared.WriteItem(monitor, g.Format)
 				return nil
 			})
 		},
@@ -165,10 +165,10 @@ func registerMute(parent *cobra.Command, globals func() *shared.GlobalFlags) {
 				if err := client.MuteMonitor(ctx, id, endStr, reason); err != nil {
 					return err
 				}
-				output.PrintJSON(map[string]any{
+				shared.WriteItem(map[string]any{
 					"status":     "muted",
 					"monitor_id": id,
-				}, true)
+				}, g.Format)
 				return nil
 			})
 		},
@@ -194,10 +194,10 @@ func registerUnmute(parent *cobra.Command, globals func() *shared.GlobalFlags) {
 				if err := client.UnmuteMonitor(ctx, id); err != nil {
 					return err
 				}
-				output.PrintJSON(map[string]any{
+				shared.WriteItem(map[string]any{
 					"status":     "unmuted",
 					"monitor_id": id,
-				}, true)
+				}, g.Format)
 				return nil
 			})
 		},

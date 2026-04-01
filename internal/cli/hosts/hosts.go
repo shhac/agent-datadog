@@ -49,10 +49,10 @@ func registerList(parent *cobra.Command, globals func() *shared.GlobalFlags) {
 						"is_muted": h.IsMuted,
 					}
 				}
-				output.PrintJSON(map[string]any{
+				shared.WriteItem(map[string]any{
 					"hosts":          compact,
 					"total_matching": resp.TotalMatching,
-				}, true)
+				}, g.Format)
 				return nil
 			})
 		},
@@ -74,7 +74,7 @@ func registerGet(parent *cobra.Command, globals func() *shared.GlobalFlags) {
 				if err != nil {
 					return err
 				}
-				output.PrintJSON(host, true)
+				shared.WriteItem(host, g.Format)
 				return nil
 			})
 		},
@@ -107,10 +107,10 @@ func registerMute(parent *cobra.Command, globals func() *shared.GlobalFlags) {
 				if err := client.MuteHost(ctx, hostname, endEpoch, reason); err != nil {
 					return err
 				}
-				output.PrintJSON(map[string]any{
+				shared.WriteItem(map[string]any{
 					"status":   "muted",
 					"hostname": hostname,
-				}, true)
+				}, g.Format)
 				return nil
 			})
 		},

@@ -79,7 +79,7 @@ func registerGet(parent *cobra.Command, globals func() *shared.GlobalFlags) {
 				if err != nil {
 					return err
 				}
-				output.PrintJSON(event, true)
+				shared.WriteItem(event, g.Format)
 				return nil
 			})
 		},

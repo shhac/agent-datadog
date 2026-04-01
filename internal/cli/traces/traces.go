@@ -96,7 +96,7 @@ func registerServices(parent *cobra.Command, globals func() *shared.GlobalFlags)
 				if err != nil {
 					return err
 				}
-				output.PrintJSON(map[string]any{"services": services}, true)
+				shared.WriteItem(map[string]any{"services": services}, g.Format)
 				return nil
 			})
 		},

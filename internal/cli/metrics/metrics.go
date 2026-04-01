@@ -61,7 +61,7 @@ func registerQuery(parent *cobra.Command, globals func() *shared.GlobalFlags) {
 						"points": s.Points,
 					}
 				}
-				output.PrintJSON(map[string]any{"series": compact}, true)
+				shared.WriteItem(map[string]any{"series": compact}, g.Format)
 				return nil
 			})
 		},
@@ -89,7 +89,7 @@ func registerList(parent *cobra.Command, globals func() *shared.GlobalFlags) {
 				for i, m := range resp.Data {
 					names[i] = m.ID
 				}
-				output.PrintJSON(map[string]any{"metrics": names}, true)
+				shared.WriteItem(map[string]any{"metrics": names}, g.Format)
 				return nil
 			})
 		},
@@ -111,7 +111,7 @@ func registerMetadata(parent *cobra.Command, globals func() *shared.GlobalFlags)
 				if err != nil {
 					return err
 				}
-				output.PrintJSON(meta, true)
+				shared.WriteItem(meta, g.Format)
 				return nil
 			})
 		},
