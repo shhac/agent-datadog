@@ -87,12 +87,10 @@ func registerCreate(parent *cobra.Command, globals func() *shared.GlobalFlags) {
 		Short: "Create an incident",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			g := globals()
-			if title == "" {
-				output.WriteError(os.Stderr, agenterrors.New("--title is required", agenterrors.FixableByAgent))
+			if !shared.RequireFlag("title", title, "") {
 				return nil
 			}
-			if severity == "" {
-				output.WriteError(os.Stderr, agenterrors.New("--severity is required (SEV-1 through SEV-5)", agenterrors.FixableByAgent))
+			if !shared.RequireFlag("severity", severity, "SEV-1 through SEV-5") {
 				return nil
 			}
 

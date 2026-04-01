@@ -8,7 +8,6 @@ import (
 
 	"github.com/shhac/agent-dd/internal/api"
 	"github.com/shhac/agent-dd/internal/cli/shared"
-	agenterrors "github.com/shhac/agent-dd/internal/errors"
 	"github.com/shhac/agent-dd/internal/output"
 )
 
@@ -34,12 +33,8 @@ func registerList(parent *cobra.Command, globals func() *shared.GlobalFlags) {
 		Short: "List SLOs",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			g := globals()
-			var tags []string
-			if tag != "" {
-				tags = []string{tag}
-			}
 			return shared.WithClient(g.Org, g.Timeout, func(ctx context.Context, client *api.Client) error {
-				slos, err := client.ListSLOs(ctx, search, tags)
+				slos, err := client.ListSLOs(ctx, search, shared.SingleTag(tag))
 				if err != nil {
 					return err
 				}
@@ -95,9 +90,7 @@ func registerHistory(parent *cobra.Command, globals func() *shared.GlobalFlags) 
 		RunE: func(cmd *cobra.Command, args []string) error {
 			g := globals()
 
-			if from == "" {
-				output.WriteError(os.Stderr, agenterrors.New("--from is required for SLO history", agenterrors.FixableByAgent).
-					WithHint("Example: --from now-7d --to now"))
+			if !shared.RequireFlag("from", from, "Example: --from now-7d --to now") {
 				return nil
 			}
 

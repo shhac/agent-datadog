@@ -4,13 +4,11 @@ import (
 	"context"
 	"fmt"
 	"os"
-	"strconv"
 
 	"github.com/spf13/cobra"
 
 	"github.com/shhac/agent-dd/internal/api"
 	"github.com/shhac/agent-dd/internal/cli/shared"
-	agenterrors "github.com/shhac/agent-dd/internal/errors"
 	"github.com/shhac/agent-dd/internal/output"
 )
 
@@ -40,11 +38,7 @@ func registerList(parent *cobra.Command, globals func() *shared.GlobalFlags) {
 		RunE: func(cmd *cobra.Command, args []string) error {
 			g := globals()
 			return shared.WithClient(g.Org, g.Timeout, func(ctx context.Context, client *api.Client) error {
-				var tags []string
-				if tag != "" {
-					tags = []string{tag}
-				}
-				monitors, err := client.ListMonitors(ctx, search, tags, status)
+				monitors, err := client.ListMonitors(ctx, search, shared.SingleTag(tag), status)
 				if err != nil {
 					return err
 				}
@@ -82,9 +76,8 @@ func registerGet(parent *cobra.Command, globals func() *shared.GlobalFlags) {
 		Args:  cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			g := globals()
-			id, err := strconv.Atoi(args[0])
-			if err != nil {
-				output.WriteError(os.Stderr, agenterrors.Newf(agenterrors.FixableByAgent, "invalid monitor ID %q — must be an integer", args[0]))
+			id, ok := shared.ParseIntArg("monitor ID", args[0])
+			if !ok {
 				return nil
 			}
 			return shared.WithClient(g.Org, g.Timeout, func(ctx context.Context, client *api.Client) error {
@@ -108,8 +101,7 @@ func registerSearch(parent *cobra.Command, globals func() *shared.GlobalFlags) {
 		Short: "Search monitors",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			g := globals()
-			if query == "" {
-				output.WriteError(os.Stderr, agenterrors.New("--query is required", agenterrors.FixableByAgent))
+			if !shared.RequireFlag("query", query, "") {
 				return nil
 			}
 			return shared.WithClient(g.Org, g.Timeout, func(ctx context.Context, client *api.Client) error {
@@ -145,9 +137,8 @@ func registerMute(parent *cobra.Command, globals func() *shared.GlobalFlags) {
 		Args:  cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			g := globals()
-			id, err := strconv.Atoi(args[0])
-			if err != nil {
-				output.WriteError(os.Stderr, agenterrors.Newf(agenterrors.FixableByAgent, "invalid monitor ID %q", args[0]))
+			id, ok := shared.ParseIntArg("monitor ID", args[0])
+			if !ok {
 				return nil
 			}
 
@@ -185,9 +176,8 @@ func registerUnmute(parent *cobra.Command, globals func() *shared.GlobalFlags) {
 		Args:  cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			g := globals()
-			id, err := strconv.Atoi(args[0])
-			if err != nil {
-				output.WriteError(os.Stderr, agenterrors.Newf(agenterrors.FixableByAgent, "invalid monitor ID %q", args[0]))
+			id, ok := shared.ParseIntArg("monitor ID", args[0])
+			if !ok {
 				return nil
 			}
 			return shared.WithClient(g.Org, g.Timeout, func(ctx context.Context, client *api.Client) error {

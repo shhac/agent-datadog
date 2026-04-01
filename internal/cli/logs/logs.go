@@ -9,9 +9,21 @@ import (
 
 	"github.com/shhac/agent-dd/internal/api"
 	"github.com/shhac/agent-dd/internal/cli/shared"
-	agenterrors "github.com/shhac/agent-dd/internal/errors"
 	"github.com/shhac/agent-dd/internal/output"
 )
+
+func toCompactLogs(data []api.LogData) []api.LogEntryCompact {
+	compact := make([]api.LogEntryCompact, len(data))
+	for i, d := range data {
+		compact[i] = api.LogEntryCompact{
+			Timestamp: d.Attributes.Timestamp,
+			Service:   d.Attributes.Service,
+			Status:    d.Attributes.Status,
+			Message:   d.Attributes.Message,
+		}
+	}
+	return compact
+}
 
 func Register(root *cobra.Command, globals func() *shared.GlobalFlags) {
 	logs := &cobra.Command{
@@ -37,8 +49,7 @@ func registerSearch(parent *cobra.Command, globals func() *shared.GlobalFlags) {
 		Short: "Search logs",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			g := globals()
-			if query == "" {
-				output.WriteError(os.Stderr, agenterrors.New("--query is required", agenterrors.FixableByAgent))
+			if !shared.RequireFlag("query", query, "") {
 				return nil
 			}
 
@@ -79,16 +90,7 @@ func registerSearch(parent *cobra.Command, globals func() *shared.GlobalFlags) {
 					return nil
 				}
 
-				compact := make([]api.LogEntryCompact, len(resp.Data))
-				for i, d := range resp.Data {
-					compact[i] = api.LogEntryCompact{
-						Timestamp: d.Attributes.Timestamp,
-						Service:   d.Attributes.Service,
-						Status:    d.Attributes.Status,
-						Message:   d.Attributes.Message,
-					}
-				}
-				shared.WritePaginatedList(shared.ToAnySlice(compact), nil, g.Format)
+				shared.WritePaginatedList(shared.ToAnySlice(toCompactLogs(resp.Data)), nil, g.Format)
 				return nil
 			})
 		},
@@ -118,8 +120,7 @@ func registerTail(parent *cobra.Command, globals func() *shared.GlobalFlags) {
 			if service != "" {
 				q += " service:" + service
 			}
-			if q == "" {
-				output.WriteError(os.Stderr, agenterrors.New("--query is required", agenterrors.FixableByAgent))
+			if !shared.RequireFlag("query", q, "") {
 				return nil
 			}
 
@@ -133,16 +134,7 @@ func registerTail(parent *cobra.Command, globals func() *shared.GlobalFlags) {
 					return err
 				}
 
-				compact := make([]api.LogEntryCompact, len(resp.Data))
-				for i, d := range resp.Data {
-					compact[i] = api.LogEntryCompact{
-						Timestamp: d.Attributes.Timestamp,
-						Service:   d.Attributes.Service,
-						Status:    d.Attributes.Status,
-						Message:   d.Attributes.Message,
-					}
-				}
-				shared.WritePaginatedList(shared.ToAnySlice(compact), nil, g.Format)
+				shared.WritePaginatedList(shared.ToAnySlice(toCompactLogs(resp.Data)), nil, g.Format)
 				return nil
 			})
 		},
@@ -161,8 +153,7 @@ func registerFacets(parent *cobra.Command, globals func() *shared.GlobalFlags) {
 		Short: "Top facet values for a log query",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			g := globals()
-			if query == "" {
-				output.WriteError(os.Stderr, agenterrors.New("--query is required", agenterrors.FixableByAgent))
+			if !shared.RequireFlag("query", query, "") {
 				return nil
 			}
 

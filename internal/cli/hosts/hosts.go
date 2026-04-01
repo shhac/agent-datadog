@@ -32,12 +32,8 @@ func registerList(parent *cobra.Command, globals func() *shared.GlobalFlags) {
 		Short: "List hosts",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			g := globals()
-			var tags []string
-			if tag != "" {
-				tags = []string{tag}
-			}
 			return shared.WithClient(g.Org, g.Timeout, func(ctx context.Context, client *api.Client) error {
-				resp, err := client.ListHosts(ctx, search, tags)
+				resp, err := client.ListHosts(ctx, search, shared.SingleTag(tag))
 				if err != nil {
 					return err
 				}

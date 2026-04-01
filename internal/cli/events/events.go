@@ -40,13 +40,8 @@ func registerList(parent *cobra.Command, globals func() *shared.GlobalFlags) {
 				return nil
 			}
 
-			var tags []string
-			if tag != "" {
-				tags = []string{tag}
-			}
-
 			return shared.WithClient(g.Org, g.Timeout, func(ctx context.Context, client *api.Client) error {
-				events, err := client.ListEvents(ctx, fromTime.Unix(), toTime.Unix(), source, tags)
+				events, err := client.ListEvents(ctx, fromTime.Unix(), toTime.Unix(), source, shared.SingleTag(tag))
 				if err != nil {
 					return err
 				}

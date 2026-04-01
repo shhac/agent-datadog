@@ -8,7 +8,6 @@ import (
 
 	"github.com/shhac/agent-dd/internal/api"
 	"github.com/shhac/agent-dd/internal/cli/shared"
-	agenterrors "github.com/shhac/agent-dd/internal/errors"
 	"github.com/shhac/agent-dd/internal/output"
 )
 
@@ -34,9 +33,7 @@ func registerQuery(parent *cobra.Command, globals func() *shared.GlobalFlags) {
 		Short: "Query metrics",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			g := globals()
-			if query == "" {
-				output.WriteError(os.Stderr, agenterrors.New("--query is required", agenterrors.FixableByAgent).
-					WithHint("Example: --query 'avg:system.cpu.user{host:web-1}'"))
+			if !shared.RequireFlag("query", query, "Example: --query 'avg:system.cpu.user{host:web-1}'") {
 				return nil
 			}
 

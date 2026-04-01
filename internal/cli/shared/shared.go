@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"strconv"
 	"strings"
 	"time"
 
@@ -143,6 +144,39 @@ func WritePaginatedList(items []any, pagination *output.Pagination, format strin
 func WriteItem(data any, format string) {
 	f := output.ResolveFormat(format, output.FormatJSON)
 	output.Print(data, f, true)
+}
+
+// RequireFlag checks that a flag value is non-empty, writing an error to stderr if not.
+// Returns true if the value is present, false if missing (error already written).
+func RequireFlag(flag, value, hint string) bool {
+	if value != "" {
+		return true
+	}
+	err := agenterrors.Newf(agenterrors.FixableByAgent, "--%s is required", flag)
+	if hint != "" {
+		err = err.WithHint(hint)
+	}
+	output.WriteError(os.Stderr, err)
+	return false
+}
+
+// SingleTag converts a single tag string to a slice, returning nil if empty.
+func SingleTag(tag string) []string {
+	if tag == "" {
+		return nil
+	}
+	return []string{tag}
+}
+
+// ParseIntArg parses an integer from a command argument, writing an error to stderr on failure.
+// Returns the parsed value and true on success, or 0 and false on failure (error already written).
+func ParseIntArg(noun, value string) (int, bool) {
+	id, err := strconv.Atoi(value)
+	if err != nil {
+		output.WriteError(os.Stderr, agenterrors.Newf(agenterrors.FixableByAgent, "invalid %s %q — must be an integer", noun, value))
+		return 0, false
+	}
+	return id, true
 }
 
 type GlobalsFunc = func() *GlobalFlags
