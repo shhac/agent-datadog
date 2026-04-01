@@ -96,7 +96,7 @@ func registerServices(parent *cobra.Command, globals func() *shared.GlobalFlags)
 				if err != nil {
 					return err
 				}
-				shared.WriteItem(map[string]any{"services": services}, g.Format)
+				shared.WritePaginatedList(shared.ToAnySlice(services), nil, g.Format)
 				return nil
 			})
 		},

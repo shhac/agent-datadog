@@ -58,7 +58,7 @@ func registerQuery(parent *cobra.Command, globals func() *shared.GlobalFlags) {
 						"points": s.Points,
 					}
 				}
-				shared.WriteItem(map[string]any{"series": compact}, g.Format)
+				shared.WritePaginatedList(shared.ToAnySlice(compact), nil, g.Format)
 				return nil
 			})
 		},
@@ -82,11 +82,7 @@ func registerList(parent *cobra.Command, globals func() *shared.GlobalFlags) {
 				if err != nil {
 					return err
 				}
-				names := make([]string, len(resp.Data))
-				for i, m := range resp.Data {
-					names[i] = m.ID
-				}
-				shared.WriteItem(map[string]any{"metrics": names}, g.Format)
+				shared.WritePaginatedList(shared.ToAnySlice(resp.Data), nil, g.Format)
 				return nil
 			})
 		},

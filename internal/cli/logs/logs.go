@@ -203,7 +203,7 @@ func registerFacets(parent *cobra.Command, globals func() *shared.GlobalFlags) {
 				if err != nil {
 					return err
 				}
-				shared.WriteItem(resp.Data.Buckets, g.Format)
+				shared.WritePaginatedList(shared.ToAnySlice(resp.Data.Buckets), nil, g.Format)
 				return nil
 			})
 		},
