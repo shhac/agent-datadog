@@ -1,0 +1,59 @@
+package logs
+
+import (
+	"fmt"
+
+	"github.com/spf13/cobra"
+)
+
+func registerLLMHelp(parent *cobra.Command) {
+	parent.AddCommand(&cobra.Command{
+		Use:   "llm-help",
+		Short: "Detailed log reference for LLMs",
+		Run: func(cmd *cobra.Command, args []string) {
+			fmt.Print(llmHelpText)
+		},
+	})
+}
+
+const llmHelpText = `LOGS — Datadog log search and analysis reference
+
+COMMANDS
+  search   Search logs with query syntax
+  tail     Poll the most recent logs (last 5 minutes)
+  facets   Get top facet values for a query
+
+EXAMPLES
+
+  # Search for errors in a service
+  agent-dd logs search --query "service:web-api status:error" --from now-1h
+
+  # Search with free text
+  agent-dd logs search --query "timeout connection refused" --limit 20
+
+  # Tail recent logs
+  agent-dd logs tail --query "service:web-api" --service web-api
+
+  # Get facet breakdown
+  agent-dd logs facets --query "status:error" --from now-1h
+
+QUERY SYNTAX (Datadog log query language)
+  service:web-api              Filter by service
+  status:error                 Filter by status (error, warn, info, debug)
+  host:web-1                   Filter by host
+  source:nginx                 Filter by source
+  @http.method:POST            Filter by facet
+  @http.status_code:>500       Numeric facet comparison
+  "connection timeout"         Free text search (quoted)
+  status:(error OR warn)       Boolean OR
+  NOT service:internal         Boolean NOT
+  -service:internal            Exclusion shorthand
+
+COMPACT vs FULL OUTPUT
+  Default: timestamp, service, status, message (token-efficient)
+  --full: includes host, tags, all attributes
+
+SORT
+  --sort asc    Oldest first
+  --sort desc   Newest first (default)
+`

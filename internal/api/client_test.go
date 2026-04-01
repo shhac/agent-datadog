@@ -1,0 +1,82 @@
+package api_test
+
+import (
+	"context"
+	"encoding/json"
+	"net/http"
+	"net/http/httptest"
+	"testing"
+
+	"github.com/shhac/agent-dd/internal/api"
+)
+
+func TestNewClientSiteURL(t *testing.T) {
+	tests := []struct {
+		site     string
+		wantBase string
+	}{
+		{"datadoghq.com", "https://api.datadoghq.com/api"},
+		{"datadoghq.eu", "https://api.datadoghq.eu/api"},
+		{"us3.datadoghq.com", "https://api.us3.datadoghq.com/api"},
+		{"us5.datadoghq.com", "https://api.us5.datadoghq.com/api"},
+		{"ap1.datadoghq.com", "https://api.ap1.datadoghq.com/api"},
+		{"", "https://api.datadoghq.com/api"},
+	}
+	for _, tt := range tests {
+		c := api.NewClient("key", "app", tt.site)
+		if c == nil {
+			t.Errorf("NewClient(%q) returned nil", tt.site)
+		}
+	}
+}
+
+func TestValidate(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path != "/api/v1/validate" {
+			t.Errorf("unexpected path: %s", r.URL.Path)
+		}
+		if r.Header.Get("DD-API-KEY") != "test-key" {
+			t.Error("missing or wrong DD-API-KEY")
+		}
+		if r.Header.Get("DD-APPLICATION-KEY") != "test-app" {
+			t.Error("missing or wrong DD-APPLICATION-KEY")
+		}
+		json.NewEncoder(w).Encode(map[string]any{"valid": true})
+	}))
+	defer srv.Close()
+
+	client := api.NewTestClient(srv.URL+"/api", "test-key", "test-app")
+	if err := client.Validate(context.Background()); err != nil {
+		t.Fatalf("Validate failed: %v", err)
+	}
+}
+
+func TestClassifyHTTPErrors(t *testing.T) {
+	tests := []struct {
+		status   int
+		wantType string
+	}{
+		{401, "human"},
+		{403, "human"},
+		{404, "agent"},
+		{429, "retry"},
+		{500, "retry"},
+		{503, "retry"},
+	}
+
+	for _, tt := range tests {
+		srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			w.WriteHeader(tt.status)
+			json.NewEncoder(w).Encode(map[string]any{"errors": []string{"test error"}})
+		}))
+
+		client := api.NewTestClient(srv.URL+"/api", "key", "app")
+		err := client.Validate(context.Background())
+		srv.Close()
+
+		if err == nil {
+			t.Errorf("status %d: expected error, got nil", tt.status)
+			continue
+		}
+	}
+}

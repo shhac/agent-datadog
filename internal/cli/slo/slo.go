@@ -1,0 +1,129 @@
+package slo
+
+import (
+	"context"
+	"os"
+
+	"github.com/spf13/cobra"
+
+	"github.com/shhac/agent-dd/internal/api"
+	"github.com/shhac/agent-dd/internal/cli/shared"
+	agenterrors "github.com/shhac/agent-dd/internal/errors"
+	"github.com/shhac/agent-dd/internal/output"
+)
+
+func Register(root *cobra.Command, globals func() *shared.GlobalFlags) {
+	s := &cobra.Command{
+		Use:   "slo",
+		Short: "SLO status and history",
+	}
+
+	registerList(s, globals)
+	registerGet(s, globals)
+	registerHistory(s, globals)
+	registerLLMHelp(s)
+
+	root.AddCommand(s)
+}
+
+func registerList(parent *cobra.Command, globals func() *shared.GlobalFlags) {
+	var search, tag string
+
+	cmd := &cobra.Command{
+		Use:   "list",
+		Short: "List SLOs",
+		RunE: func(cmd *cobra.Command, args []string) error {
+			g := globals()
+			var tags []string
+			if tag != "" {
+				tags = []string{tag}
+			}
+			return shared.WithClient(g.Org, g.Timeout, func(ctx context.Context, client *api.Client) error {
+				slos, err := client.ListSLOs(ctx, search, tags)
+				if err != nil {
+					return err
+				}
+				compact := make([]map[string]any, len(slos))
+				for i, s := range slos {
+					compact[i] = map[string]any{
+						"id":   s.ID,
+						"name": s.Name,
+						"type": s.Type,
+					}
+					if s.Status != nil {
+						compact[i]["status"] = s.Status.Status
+						compact[i]["error_budget_remaining"] = s.Status.ErrorBudgetRemaining
+					}
+				}
+				shared.WritePaginatedList(shared.ToAnySlice(compact), nil, g.Format)
+				return nil
+			})
+		},
+	}
+	cmd.Flags().StringVar(&search, "search", "", "Search SLOs by name")
+	cmd.Flags().StringVar(&tag, "tag", "", "Filter by tag")
+	parent.AddCommand(cmd)
+}
+
+func registerGet(parent *cobra.Command, globals func() *shared.GlobalFlags) {
+	cmd := &cobra.Command{
+		Use:   "get <id>",
+		Short: "Get SLO details",
+		Args:  cobra.ExactArgs(1),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			g := globals()
+			return shared.WithClient(g.Org, g.Timeout, func(ctx context.Context, client *api.Client) error {
+				s, err := client.GetSLO(ctx, args[0])
+				if err != nil {
+					return err
+				}
+				output.PrintJSON(s, true)
+				return nil
+			})
+		},
+	}
+	parent.AddCommand(cmd)
+}
+
+func registerHistory(parent *cobra.Command, globals func() *shared.GlobalFlags) {
+	var from, to string
+
+	cmd := &cobra.Command{
+		Use:   "history <id>",
+		Short: "Get SLO history",
+		Args:  cobra.ExactArgs(1),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			g := globals()
+
+			fromTime, err := shared.ParseTimeDefaultFrom(from)
+			if err != nil {
+				output.WriteError(os.Stderr, err)
+				return nil
+			}
+			toTime, err := shared.ParseTimeDefaultTo(to)
+			if err != nil {
+				output.WriteError(os.Stderr, err)
+				return nil
+			}
+
+			// Validate that if --from wasn't provided, we default to 7d for SLO history
+			if from == "" {
+				output.WriteError(os.Stderr, agenterrors.New("--from is required for SLO history", agenterrors.FixableByAgent).
+					WithHint("Example: --from now-7d --to now"))
+				return nil
+			}
+
+			return shared.WithClient(g.Org, g.Timeout, func(ctx context.Context, client *api.Client) error {
+				history, err := client.GetSLOHistory(ctx, args[0], fromTime.Unix(), toTime.Unix())
+				if err != nil {
+					return err
+				}
+				output.PrintJSON(history, true)
+				return nil
+			})
+		},
+	}
+	cmd.Flags().StringVar(&from, "from", "", "Start time (required)")
+	cmd.Flags().StringVar(&to, "to", "", "End time (default: now)")
+	parent.AddCommand(cmd)
+}
