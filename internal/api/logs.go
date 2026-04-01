@@ -2,7 +2,6 @@ package api
 
 import (
 	"context"
-	"encoding/json"
 	"net/http"
 )
 
@@ -67,16 +66,7 @@ func (c *Client) SearchLogs(ctx context.Context, query, from, to, sort string, l
 		req.Page = &LogPage{Limit: limit}
 	}
 
-	raw, err := c.do(ctx, http.MethodPost, "/v2/logs/events/search", req)
-	if err != nil {
-		return nil, err
-	}
-
-	var resp LogSearchResponse
-	if err := json.Unmarshal(raw, &resp); err != nil {
-		return nil, err
-	}
-	return &resp, nil
+	return doAndDecode[LogSearchResponse](c, ctx, http.MethodPost, "/v2/logs/events/search", req)
 }
 
 type LogAggregateBucket struct {
@@ -116,14 +106,5 @@ func (c *Client) AggregateLogs(ctx context.Context, query, from, to string, grou
 		body["group_by"] = groups
 	}
 
-	raw, err := c.do(ctx, http.MethodPost, "/v2/logs/analytics/aggregate", body)
-	if err != nil {
-		return nil, err
-	}
-
-	var resp LogAggregateResponse
-	if err := json.Unmarshal(raw, &resp); err != nil {
-		return nil, err
-	}
-	return &resp, nil
+	return doAndDecode[LogAggregateResponse](c, ctx, http.MethodPost, "/v2/logs/analytics/aggregate", body)
 }

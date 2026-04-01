@@ -5,6 +5,9 @@ import (
 	"encoding/json"
 	"net/http"
 	"net/url"
+	"strings"
+
+	agenterrors "github.com/shhac/agent-dd/internal/errors"
 )
 
 type TraceSearchResponse struct {
@@ -48,16 +51,7 @@ func (c *Client) SearchTraces(ctx context.Context, query, service, from, to stri
 		body["page"] = map[string]any{"limit": limit}
 	}
 
-	raw, err := c.do(ctx, http.MethodPost, "/v2/spans/events/search", body)
-	if err != nil {
-		return nil, err
-	}
-
-	var resp TraceSearchResponse
-	if err := json.Unmarshal(raw, &resp); err != nil {
-		return nil, err
-	}
-	return &resp, nil
+	return doAndDecode[TraceSearchResponse](c, ctx, http.MethodPost, "/v2/spans/events/search", body)
 }
 
 type ServiceListResponse struct {
@@ -94,27 +88,14 @@ func (c *Client) ListServices(ctx context.Context, search string) ([]APMService,
 	// v1 services endpoint returns a map
 	var serviceMap map[string]any
 	if err := json.Unmarshal(raw, &serviceMap); err != nil {
-		return nil, err
+		return nil, agenterrors.Wrap(err, agenterrors.FixableByAgent)
 	}
 
 	services := make([]APMService, 0)
 	for name := range serviceMap {
-		if search == "" || containsSubstring(name, search) {
+		if search == "" || strings.Contains(name, search) {
 			services = append(services, APMService{Name: name})
 		}
 	}
 	return services, nil
-}
-
-func containsSubstring(s, sub string) bool {
-	return len(s) >= len(sub) && (s == sub || len(sub) == 0 || indexSubstring(s, sub) >= 0)
-}
-
-func indexSubstring(s, sub string) int {
-	for i := 0; i <= len(s)-len(sub); i++ {
-		if s[i:i+len(sub)] == sub {
-			return i
-		}
-	}
-	return -1
 }

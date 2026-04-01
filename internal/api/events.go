@@ -2,7 +2,6 @@ package api
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"net/http"
 	"net/url"
@@ -25,31 +24,17 @@ func (c *Client) ListEvents(ctx context.Context, from, to int64, source string, 
 	}
 
 	path := "/v1/events?" + params.Encode()
-	raw, err := c.do(ctx, http.MethodGet, path, nil)
+	resp, err := doAndDecode[EventListResponse](c, ctx, http.MethodGet, path, nil)
 	if err != nil {
-		return nil, err
-	}
-
-	var resp EventListResponse
-	if err := json.Unmarshal(raw, &resp); err != nil {
 		return nil, err
 	}
 	return resp.Events, nil
 }
 
 func (c *Client) GetEvent(ctx context.Context, id int64) (*Event, error) {
-	path := fmt.Sprintf("/v1/events/%d", id)
-
-	raw, err := c.do(ctx, http.MethodGet, path, nil)
-	if err != nil {
-		return nil, err
-	}
-
-	var resp struct {
+	type eventResp struct {
 		Event Event `json:"event"`
 	}
-	if err := json.Unmarshal(raw, &resp); err != nil {
-		return nil, err
-	}
-	return &resp.Event, nil
+	path := fmt.Sprintf("/v1/events/%d", id)
+	return doAndDecodeField[eventResp, Event](c, ctx, http.MethodGet, path, nil, func(r *eventResp) *Event { return &r.Event })
 }

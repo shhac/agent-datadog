@@ -2,7 +2,6 @@ package api
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"net/http"
 	"net/url"
@@ -19,18 +18,8 @@ func (c *Client) QueryMetrics(ctx context.Context, query string, from, to int64)
 		"from":  {fmt.Sprintf("%d", from)},
 		"to":    {fmt.Sprintf("%d", to)},
 	}
-
 	path := "/v1/query?" + params.Encode()
-	raw, err := c.do(ctx, http.MethodGet, path, nil)
-	if err != nil {
-		return nil, err
-	}
-
-	var resp MetricQueryResponse
-	if err := json.Unmarshal(raw, &resp); err != nil {
-		return nil, err
-	}
-	return &resp, nil
+	return doAndDecode[MetricQueryResponse](c, ctx, http.MethodGet, path, nil)
 }
 
 type MetricListResponse struct {
@@ -43,18 +32,13 @@ type MetricListEntry struct {
 }
 
 func (c *Client) ListMetrics(ctx context.Context, search string, tag string) (*MetricListResponse, error) {
-	params := url.Values{}
-	if search != "" {
-		params.Set("filter[configured]", "true")
-		params.Set("filter[tags_configured]", search)
-	}
-	if tag != "" {
-		params.Set("filter[tags]", tag)
-	}
-
-	// v2 metrics listing can be limited; fall back to v1 search
 	if search != "" {
 		return c.searchMetricsV1(ctx, search)
+	}
+
+	params := url.Values{}
+	if tag != "" {
+		params.Set("filter[tags]", tag)
 	}
 
 	path := "/v2/metrics"
@@ -62,33 +46,21 @@ func (c *Client) ListMetrics(ctx context.Context, search string, tag string) (*M
 		path += "?" + encoded
 	}
 
-	raw, err := c.do(ctx, http.MethodGet, path, nil)
-	if err != nil {
-		return nil, err
-	}
-
-	var resp MetricListResponse
-	if err := json.Unmarshal(raw, &resp); err != nil {
-		return nil, err
-	}
-	return &resp, nil
+	return doAndDecode[MetricListResponse](c, ctx, http.MethodGet, path, nil)
 }
 
 func (c *Client) searchMetricsV1(ctx context.Context, query string) (*MetricListResponse, error) {
-	params := url.Values{"q": {"metrics:" + query}}
-	path := "/v1/search?" + params.Encode()
-
-	raw, err := c.do(ctx, http.MethodGet, path, nil)
-	if err != nil {
-		return nil, err
-	}
-
-	var resp struct {
+	type searchResp struct {
 		Results struct {
 			Metrics []string `json:"metrics"`
 		} `json:"results"`
 	}
-	if err := json.Unmarshal(raw, &resp); err != nil {
+
+	params := url.Values{"q": {"metrics:" + query}}
+	path := "/v1/search?" + params.Encode()
+
+	resp, err := doAndDecode[searchResp](c, ctx, http.MethodGet, path, nil)
+	if err != nil {
 		return nil, err
 	}
 

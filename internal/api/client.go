@@ -94,6 +94,16 @@ func doAndDecode[T any](c *Client, ctx context.Context, method, path string, bod
 	return &result, nil
 }
 
+// doAndDecodeField decodes a JSON response and extracts a nested field.
+// Used for APIs that wrap results in envelopes like {"data": ...} or {"event": ...}.
+func doAndDecodeField[W any, T any](c *Client, ctx context.Context, method, path string, body any, extract func(*W) *T) (*T, error) {
+	wrapper, err := doAndDecode[W](c, ctx, method, path, body)
+	if err != nil {
+		return nil, err
+	}
+	return extract(wrapper), nil
+}
+
 func classifyHTTPError(status int, body []byte) *agenterrors.APIError {
 	var parsed struct {
 		Errors []string `json:"errors"`

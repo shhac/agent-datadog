@@ -2,10 +2,11 @@ package api
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"net/http"
 	"net/url"
+
+	agenterrors "github.com/shhac/agent-dd/internal/errors"
 )
 
 type HostListResponse struct {
@@ -19,10 +20,8 @@ func (c *Client) ListHosts(ctx context.Context, search string, tags []string) (*
 	if search != "" {
 		params.Set("filter", search)
 	}
-	if len(tags) > 0 {
-		for _, tag := range tags {
-			params.Add("filter", tag)
-		}
+	for _, tag := range tags {
+		params.Add("filter", tag)
 	}
 
 	path := "/v1/hosts"
@@ -30,33 +29,20 @@ func (c *Client) ListHosts(ctx context.Context, search string, tags []string) (*
 		path += "?" + encoded
 	}
 
-	raw, err := c.do(ctx, http.MethodGet, path, nil)
-	if err != nil {
-		return nil, err
-	}
-
-	var resp HostListResponse
-	if err := json.Unmarshal(raw, &resp); err != nil {
-		return nil, err
-	}
-	return &resp, nil
+	return doAndDecode[HostListResponse](c, ctx, http.MethodGet, path, nil)
 }
 
 func (c *Client) GetHost(ctx context.Context, hostname string) (*Host, error) {
 	params := url.Values{"filter": {hostname}}
 	path := "/v1/hosts?" + params.Encode()
 
-	raw, err := c.do(ctx, http.MethodGet, path, nil)
+	resp, err := doAndDecode[HostListResponse](c, ctx, http.MethodGet, path, nil)
 	if err != nil {
 		return nil, err
 	}
-
-	var resp HostListResponse
-	if err := json.Unmarshal(raw, &resp); err != nil {
-		return nil, err
-	}
 	if len(resp.HostList) == 0 {
-		return nil, fmt.Errorf("host %q not found", hostname)
+		return nil, agenterrors.Newf(agenterrors.FixableByAgent, "host %q not found", hostname).
+			WithHint("Check the hostname — use 'agent-dd hosts list' to see available hosts")
 	}
 	return &resp.HostList[0], nil
 }

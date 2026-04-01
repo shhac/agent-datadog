@@ -2,7 +2,6 @@ package api
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"net/http"
 	"net/url"
@@ -25,27 +24,12 @@ func (c *Client) ListMonitors(ctx context.Context, search string, tags []string,
 		path += "?" + encoded
 	}
 
-	raw, err := c.do(ctx, http.MethodGet, path, nil)
+	monitors, err := doAndDecode[[]Monitor](c, ctx, http.MethodGet, path, nil)
 	if err != nil {
 		return nil, err
 	}
 
-	var monitors []Monitor
-	if err := json.Unmarshal(raw, &monitors); err != nil {
-		return nil, err
-	}
-
-	if status != "" {
-		filtered := make([]Monitor, 0)
-		for _, m := range monitors {
-			if m.Status == status {
-				filtered = append(filtered, m)
-			}
-		}
-		return filtered, nil
-	}
-
-	return monitors, nil
+	return filterMonitorsByStatus(*monitors, status), nil
 }
 
 func (c *Client) GetMonitor(ctx context.Context, id int) (*Monitor, error) {
@@ -64,29 +48,28 @@ func (c *Client) SearchMonitors(ctx context.Context, query string, status string
 		path += "?" + encoded
 	}
 
-	raw, err := c.do(ctx, http.MethodGet, path, nil)
+	type searchResp struct {
+		Monitors []Monitor `json:"monitors"`
+	}
+	resp, err := doAndDecode[searchResp](c, ctx, http.MethodGet, path, nil)
 	if err != nil {
 		return nil, err
 	}
 
-	var resp struct {
-		Monitors []Monitor `json:"monitors"`
-	}
-	if err := json.Unmarshal(raw, &resp); err != nil {
-		return nil, err
-	}
+	return filterMonitorsByStatus(resp.Monitors, status), nil
+}
 
-	if status != "" {
-		filtered := make([]Monitor, 0)
-		for _, m := range resp.Monitors {
-			if m.Status == status {
-				filtered = append(filtered, m)
-			}
+func filterMonitorsByStatus(monitors []Monitor, status string) []Monitor {
+	if status == "" {
+		return monitors
+	}
+	filtered := make([]Monitor, 0, len(monitors))
+	for _, m := range monitors {
+		if m.Status == status {
+			filtered = append(filtered, m)
 		}
-		return filtered, nil
 	}
-
-	return resp.Monitors, nil
+	return filtered
 }
 
 func (c *Client) MuteMonitor(ctx context.Context, id int, end string, reason string) error {
