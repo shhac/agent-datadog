@@ -3,11 +3,13 @@ package api_test
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"net/http"
 	"net/http/httptest"
 	"testing"
 
 	"github.com/shhac/agent-dd/internal/api"
+	agenterrors "github.com/shhac/agent-dd/internal/errors"
 )
 
 func TestNewClientSiteURL(t *testing.T) {
@@ -77,6 +79,17 @@ func TestClassifyHTTPErrors(t *testing.T) {
 		if err == nil {
 			t.Errorf("status %d: expected error, got nil", tt.status)
 			continue
+		}
+		var aerr *agenterrors.APIError
+		if !errors.As(err, &aerr) {
+			t.Errorf("status %d: expected *APIError, got %T", tt.status, err)
+			continue
+		}
+		if string(aerr.FixableBy) != tt.wantType {
+			t.Errorf("status %d: fixable_by = %q, want %q", tt.status, aerr.FixableBy, tt.wantType)
+		}
+		if aerr.Hint == "" && (tt.status == 401 || tt.status == 403 || tt.status == 404 || tt.status == 429 || tt.status >= 500) {
+			t.Errorf("status %d: expected non-empty hint", tt.status)
 		}
 	}
 }

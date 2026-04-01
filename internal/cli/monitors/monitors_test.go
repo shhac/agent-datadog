@@ -1,12 +1,11 @@
 package monitors_test
 
 import (
+	"context"
 	"encoding/json"
 	"net/http"
-	"os"
 	"testing"
 
-	"github.com/shhac/agent-dd/internal/cli"
 	"github.com/shhac/agent-dd/internal/cli/shared"
 )
 
@@ -27,22 +26,20 @@ func TestMonitorsList(t *testing.T) {
 		})
 	})
 
-	old := os.Stdout
-	r, w, _ := os.Pipe()
-	os.Stdout = w
+	client, err := shared.ClientFactory()
+	if err != nil {
+		t.Fatal(err)
+	}
 
-	err := cli.Execute("test")
-	_ = err
-
-	w.Close()
-	os.Stdout = old
-
-	buf := make([]byte, 4096)
-	n, _ := r.Read(buf)
-	output := string(buf[:n])
-
-	if output == "" {
-		t.Skip("no output captured — CLI requires args")
+	monitors, err := client.ListMonitors(context.Background(), "", nil, "")
+	if err != nil {
+		t.Fatalf("ListMonitors failed: %v", err)
+	}
+	if len(monitors) != 2 {
+		t.Fatalf("expected 2 monitors, got %d", len(monitors))
+	}
+	if monitors[0].Name != "CPU Alert" {
+		t.Errorf("expected name 'CPU Alert', got %q", monitors[0].Name)
 	}
 }
 
@@ -54,17 +51,20 @@ func TestMonitorsListWithStatus(t *testing.T) {
 		})
 	})
 
-	// Verify the mock server and client factory are correctly wired
-	if shared.ClientFactory == nil {
-		t.Fatal("ClientFactory not set by SetupMockServer")
-	}
-
 	client, err := shared.ClientFactory()
 	if err != nil {
-		t.Fatalf("ClientFactory returned error: %v", err)
+		t.Fatal(err)
 	}
-	if client == nil {
-		t.Fatal("ClientFactory returned nil client")
+
+	monitors, err := client.ListMonitors(context.Background(), "", nil, "alert")
+	if err != nil {
+		t.Fatalf("ListMonitors failed: %v", err)
+	}
+	if len(monitors) != 1 {
+		t.Fatalf("expected 1 filtered monitor, got %d", len(monitors))
+	}
+	if monitors[0].Status != "alert" {
+		t.Errorf("expected status 'alert', got %q", monitors[0].Status)
 	}
 }
 
@@ -84,7 +84,19 @@ func TestMonitorsGet(t *testing.T) {
 		})
 	})
 
-	if shared.ClientFactory == nil {
-		t.Fatal("ClientFactory not set")
+	client, err := shared.ClientFactory()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	monitor, err := client.GetMonitor(context.Background(), 123)
+	if err != nil {
+		t.Fatalf("GetMonitor failed: %v", err)
+	}
+	if monitor.Name != "CPU Alert" {
+		t.Errorf("expected name 'CPU Alert', got %q", monitor.Name)
+	}
+	if monitor.Query != "avg(last_5m):avg:system.cpu.user{*} > 90" {
+		t.Errorf("unexpected query: %q", monitor.Query)
 	}
 }

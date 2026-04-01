@@ -16,7 +16,7 @@ func SetupMockServer(t *testing.T, handler http.HandlerFunc) *httptest.Server {
 		ClientFactory = nil
 	})
 	ClientFactory = func() (*api.Client, error) {
-		return api.NewTestClient(srv.URL, "test-api-key", "test-app-key"), nil
+		return api.NewTestClient(srv.URL+"/api", "test-api-key", "test-app-key"), nil
 	}
 	return srv
 }
