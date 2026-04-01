@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"github.com/shhac/agent-dd/internal/cli/shared"
+	"github.com/shhac/agent-dd/internal/output"
 )
 
 func TestParseTimeRelative(t *testing.T) {
@@ -84,3 +85,80 @@ func TestParseTimeEmpty(t *testing.T) {
 		t.Errorf("expected zero time for empty string, got %v", result)
 	}
 }
+
+func TestCursorPagination(t *testing.T) {
+	t.Run("empty cursor returns nil", func(t *testing.T) {
+		p := shared.CursorPagination("")
+		if p != nil {
+			t.Errorf("expected nil for empty cursor, got %+v", p)
+		}
+	})
+
+	t.Run("non-empty cursor returns pagination", func(t *testing.T) {
+		p := shared.CursorPagination("abc123")
+		if p == nil {
+			t.Fatal("expected non-nil pagination")
+		}
+		if !p.HasMore {
+			t.Error("expected HasMore=true")
+		}
+		if p.NextCursor != "abc123" {
+			t.Errorf("expected NextCursor='abc123', got %q", p.NextCursor)
+		}
+	})
+}
+
+func TestRequireFlag(t *testing.T) {
+	t.Run("non-empty returns true", func(t *testing.T) {
+		if !shared.RequireFlag("query", "some-value", "") {
+			t.Error("expected true for non-empty value")
+		}
+	})
+
+	t.Run("empty returns false", func(t *testing.T) {
+		if shared.RequireFlag("query", "", "provide a query") {
+			t.Error("expected false for empty value")
+		}
+	})
+}
+
+func TestSingleTag(t *testing.T) {
+	t.Run("empty returns nil", func(t *testing.T) {
+		result := shared.SingleTag("")
+		if result != nil {
+			t.Errorf("expected nil, got %v", result)
+		}
+	})
+
+	t.Run("non-empty returns slice", func(t *testing.T) {
+		result := shared.SingleTag("env:prod")
+		if len(result) != 1 || result[0] != "env:prod" {
+			t.Errorf("expected [env:prod], got %v", result)
+		}
+	})
+}
+
+func TestParseIntArg(t *testing.T) {
+	t.Run("valid integer", func(t *testing.T) {
+		val, ok := shared.ParseIntArg("monitor ID", "123")
+		if !ok {
+			t.Error("expected ok=true for valid integer")
+		}
+		if val != 123 {
+			t.Errorf("expected 123, got %d", val)
+		}
+	})
+
+	t.Run("invalid integer", func(t *testing.T) {
+		val, ok := shared.ParseIntArg("monitor ID", "abc")
+		if ok {
+			t.Error("expected ok=false for invalid integer")
+		}
+		if val != 0 {
+			t.Errorf("expected 0, got %d", val)
+		}
+	})
+}
+
+// Ensure output.Pagination is used correctly by CursorPagination.
+var _ *output.Pagination = shared.CursorPagination("test")

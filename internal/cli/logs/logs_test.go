@@ -61,6 +61,73 @@ func TestLogsSearch(t *testing.T) {
 	}
 }
 
+func TestLogsSearchWithCursor(t *testing.T) {
+	shared.SetupMockServer(t, func(w http.ResponseWriter, r *http.Request) {
+		json.NewEncoder(w).Encode(map[string]any{
+			"data": []map[string]any{
+				{
+					"id":   "log1",
+					"type": "log",
+					"attributes": map[string]any{
+						"timestamp": "2024-01-15T10:00:00Z",
+						"service":   "web-api",
+						"status":    "error",
+						"message":   "timeout",
+					},
+				},
+			},
+			"meta": map[string]any{
+				"page": map[string]any{
+					"after": "cursor123",
+				},
+			},
+		})
+	})
+
+	client, err := shared.ClientFactory()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	resp, err := client.SearchLogs(context.Background(), "service:web", "2024-01-15T09:00:00Z", "2024-01-15T10:00:00Z", "", 50, "")
+	if err != nil {
+		t.Fatalf("SearchLogs failed: %v", err)
+	}
+	if resp.Cursor() != "cursor123" {
+		t.Errorf("expected cursor 'cursor123', got %q", resp.Cursor())
+	}
+}
+
+func TestLogsSearchPassesCursor(t *testing.T) {
+	shared.SetupMockServer(t, func(w http.ResponseWriter, r *http.Request) {
+		var body map[string]any
+		json.NewDecoder(r.Body).Decode(&body)
+
+		page, ok := body["page"].(map[string]any)
+		if !ok {
+			t.Fatal("missing page in request body")
+		}
+		cursor, _ := page["cursor"].(string)
+		if cursor != "mycursor" {
+			t.Errorf("expected page.cursor='mycursor', got %q", cursor)
+		}
+
+		json.NewEncoder(w).Encode(map[string]any{
+			"data": []map[string]any{},
+		})
+	})
+
+	client, err := shared.ClientFactory()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	_, err = client.SearchLogs(context.Background(), "service:web", "2024-01-15T09:00:00Z", "2024-01-15T10:00:00Z", "", 50, "mycursor")
+	if err != nil {
+		t.Fatalf("SearchLogs with cursor failed: %v", err)
+	}
+}
+
 func TestLogsAggregate(t *testing.T) {
 	shared.SetupMockServer(t, func(w http.ResponseWriter, r *http.Request) {
 		if r.URL.Path != "/api/v2/logs/analytics/aggregate" {

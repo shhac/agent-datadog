@@ -136,6 +136,107 @@ func TestCreateIncidentWithCommander(t *testing.T) {
 	}
 }
 
+func TestListIncidents(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodGet {
+			t.Errorf("expected GET, got %s", r.Method)
+		}
+		if r.URL.Path != "/api/v2/incidents" {
+			t.Errorf("unexpected path: %s", r.URL.Path)
+		}
+
+		json.NewEncoder(w).Encode(map[string]any{
+			"data": []map[string]any{
+				{
+					"id":   "inc-1",
+					"type": "incidents",
+					"attributes": map[string]any{
+						"title":  "Outage",
+						"status": "active",
+					},
+				},
+			},
+			"meta": map[string]any{
+				"pagination": map[string]any{
+					"offset":      0,
+					"next_offset": 25,
+					"size":        25,
+				},
+			},
+		})
+	}))
+	defer srv.Close()
+
+	client := api.NewTestClient(srv.URL+"/api", "key", "app")
+	resp, err := client.ListIncidents(context.Background(), "")
+	if err != nil {
+		t.Fatalf("ListIncidents failed: %v", err)
+	}
+	if len(resp.Data) != 1 {
+		t.Fatalf("expected 1 incident, got %d", len(resp.Data))
+	}
+	if resp.Data[0].ID != "inc-1" {
+		t.Errorf("expected ID=inc-1, got %s", resp.Data[0].ID)
+	}
+	if !resp.HasMore() {
+		t.Error("expected HasMore() to be true")
+	}
+}
+
+func TestListIncidentsNoMore(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		json.NewEncoder(w).Encode(map[string]any{
+			"data": []map[string]any{
+				{
+					"id":   "inc-1",
+					"type": "incidents",
+					"attributes": map[string]any{
+						"title":  "Minor issue",
+						"status": "resolved",
+					},
+				},
+			},
+			"meta": map[string]any{
+				"pagination": map[string]any{
+					"offset":      0,
+					"next_offset": 0,
+					"size":        1,
+				},
+			},
+		})
+	}))
+	defer srv.Close()
+
+	client := api.NewTestClient(srv.URL+"/api", "key", "app")
+	resp, err := client.ListIncidents(context.Background(), "")
+	if err != nil {
+		t.Fatalf("ListIncidents failed: %v", err)
+	}
+	if resp.HasMore() {
+		t.Error("expected HasMore() to be false")
+	}
+}
+
+func TestIncidentListResponseHasMore(t *testing.T) {
+	tests := []struct {
+		name string
+		resp *api.IncidentListResponse
+		want bool
+	}{
+		{"nil Meta", &api.IncidentListResponse{Meta: nil}, false},
+		{"nil Pagination", &api.IncidentListResponse{Meta: &api.IncidentListMeta{Pagination: nil}}, false},
+		{"NextOffset > Offset", &api.IncidentListResponse{Meta: &api.IncidentListMeta{Pagination: &api.IncidentPagination{Offset: 0, NextOffset: 25}}}, true},
+		{"NextOffset == Offset", &api.IncidentListResponse{Meta: &api.IncidentListMeta{Pagination: &api.IncidentPagination{Offset: 25, NextOffset: 25}}}, false},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := tt.resp.HasMore(); got != tt.want {
+				t.Errorf("HasMore() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
 func TestUpdateIncident(t *testing.T) {
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodPatch {
