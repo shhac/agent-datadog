@@ -49,7 +49,7 @@ func TestLogsSearch(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	resp, err := client.SearchLogs(context.Background(), "service:web", "2024-01-15T09:00:00Z", "2024-01-15T10:00:00Z", "", 50)
+	resp, err := client.SearchLogs(context.Background(), "service:web", "2024-01-15T09:00:00Z", "2024-01-15T10:00:00Z", "", 50, "")
 	if err != nil {
 		t.Fatalf("SearchLogs failed: %v", err)
 	}

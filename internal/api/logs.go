@@ -51,7 +51,7 @@ type LogSearchMetaPage struct {
 	After string `json:"after,omitempty"`
 }
 
-func (c *Client) SearchLogs(ctx context.Context, query, from, to, sort string, limit int) (*LogSearchResponse, error) {
+func (c *Client) SearchLogs(ctx context.Context, query, from, to, sort string, limit int, cursor string) (*LogSearchResponse, error) {
 	req := LogSearchRequest{
 		Filter: &LogFilter{
 			Query: query,
@@ -62,11 +62,26 @@ func (c *Client) SearchLogs(ctx context.Context, query, from, to, sort string, l
 	if sort != "" {
 		req.Sort = sort
 	}
+	page := &LogPage{}
 	if limit > 0 {
-		req.Page = &LogPage{Limit: limit}
+		page.Limit = limit
+	}
+	if cursor != "" {
+		page.Cursor = cursor
+	}
+	if page.Limit > 0 || page.Cursor != "" {
+		req.Page = page
 	}
 
 	return doAndDecode[LogSearchResponse](c, ctx, http.MethodPost, "/v2/logs/events/search", req)
+}
+
+// Cursor returns the pagination cursor from the response, or empty if none.
+func (r *LogSearchResponse) Cursor() string {
+	if r.Meta != nil && r.Meta.Page != nil {
+		return r.Meta.Page.After
+	}
+	return ""
 }
 
 type LogAggregateBucket struct {

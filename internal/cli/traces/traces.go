@@ -70,7 +70,7 @@ func registerSearch(parent *cobra.Command, globals func() *shared.GlobalFlags) {
 						"error":    d.Attributes.Error,
 					}
 				}
-				shared.WritePaginatedList(shared.ToAnySlice(spans), nil, g.Format)
+				shared.WritePaginatedList(shared.ToAnySlice(spans), shared.CursorPagination(resp.Cursor()), g.Format)
 				return nil
 			})
 		},

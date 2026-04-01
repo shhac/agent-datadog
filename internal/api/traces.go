@@ -11,7 +11,24 @@ import (
 )
 
 type TraceSearchResponse struct {
-	Data []TraceData `json:"data"`
+	Data []TraceData     `json:"data"`
+	Meta *TraceSearchMeta `json:"meta,omitempty"`
+}
+
+type TraceSearchMeta struct {
+	Page *TraceSearchMetaPage `json:"page,omitempty"`
+}
+
+type TraceSearchMetaPage struct {
+	After string `json:"after,omitempty"`
+}
+
+// Cursor returns the pagination cursor from the response, or empty if none.
+func (r *TraceSearchResponse) Cursor() string {
+	if r.Meta != nil && r.Meta.Page != nil {
+		return r.Meta.Page.After
+	}
+	return ""
 }
 
 type TraceData struct {

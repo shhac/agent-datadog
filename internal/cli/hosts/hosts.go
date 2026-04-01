@@ -45,10 +45,11 @@ func registerList(parent *cobra.Command, globals func() *shared.GlobalFlags) {
 						"is_muted": h.IsMuted,
 					}
 				}
-				shared.WriteItem(map[string]any{
-					"hosts":          compact,
-					"total_matching": resp.TotalMatching,
-				}, g.Format)
+				var pagination *output.Pagination
+				if resp.TotalMatching > resp.TotalReturned {
+					pagination = &output.Pagination{HasMore: true, TotalItems: resp.TotalMatching}
+				}
+				shared.WritePaginatedList(shared.ToAnySlice(compact), pagination, g.Format)
 				return nil
 			})
 		},

@@ -36,12 +36,12 @@ func registerList(parent *cobra.Command, globals func() *shared.GlobalFlags) {
 		RunE: func(cmd *cobra.Command, args []string) error {
 			g := globals()
 			return shared.WithClient(g.Org, g.Timeout, func(ctx context.Context, client *api.Client) error {
-				incidents, err := client.ListIncidents(ctx, status)
+				resp, err := client.ListIncidents(ctx, status)
 				if err != nil {
 					return err
 				}
-				compact := make([]map[string]any, len(incidents))
-				for i, inc := range incidents {
+				compact := make([]map[string]any, len(resp.Data))
+				for i, inc := range resp.Data {
 					entry := map[string]any{"id": inc.ID}
 					if inc.Attributes != nil {
 						entry["title"] = inc.Attributes.Title
@@ -50,7 +50,11 @@ func registerList(parent *cobra.Command, globals func() *shared.GlobalFlags) {
 					}
 					compact[i] = entry
 				}
-				shared.WritePaginatedList(shared.ToAnySlice(compact), nil, g.Format)
+				var pagination *output.Pagination
+				if resp.HasMore() {
+					pagination = &output.Pagination{HasMore: true}
+				}
+				shared.WritePaginatedList(shared.ToAnySlice(compact), pagination, g.Format)
 				return nil
 			})
 		},

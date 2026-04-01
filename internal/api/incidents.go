@@ -7,10 +7,21 @@ import (
 )
 
 type IncidentListResponse struct {
-	Data []Incident `json:"data"`
+	Data []Incident         `json:"data"`
+	Meta *IncidentListMeta  `json:"meta,omitempty"`
 }
 
-func (c *Client) ListIncidents(ctx context.Context, status string) ([]Incident, error) {
+type IncidentListMeta struct {
+	Pagination *IncidentPagination `json:"pagination,omitempty"`
+}
+
+type IncidentPagination struct {
+	Offset     int `json:"offset"`
+	NextOffset int `json:"next_offset"`
+	Size       int `json:"size"`
+}
+
+func (c *Client) ListIncidents(ctx context.Context, status string) (*IncidentListResponse, error) {
 	params := url.Values{}
 	if status != "" {
 		params.Set("filter[status]", status)
@@ -21,11 +32,12 @@ func (c *Client) ListIncidents(ctx context.Context, status string) ([]Incident, 
 		path += "?" + encoded
 	}
 
-	resp, err := doAndDecode[IncidentListResponse](c, ctx, http.MethodGet, path, nil)
-	if err != nil {
-		return nil, err
-	}
-	return resp.Data, nil
+	return doAndDecode[IncidentListResponse](c, ctx, http.MethodGet, path, nil)
+}
+
+// HasMore returns true if there are more pages of incidents.
+func (r *IncidentListResponse) HasMore() bool {
+	return r.Meta != nil && r.Meta.Pagination != nil && r.Meta.Pagination.NextOffset > r.Meta.Pagination.Offset
 }
 
 func (c *Client) GetIncident(ctx context.Context, id string) (*Incident, error) {

@@ -67,10 +67,12 @@ func registerSearch(parent *cobra.Command, globals func() *shared.GlobalFlags) {
 				resp, err := client.SearchLogs(ctx, query,
 					fromTime.Format(time.RFC3339),
 					toTime.Format(time.RFC3339),
-					sort, limit)
+					sort, limit, "")
 				if err != nil {
 					return err
 				}
+
+				pagination := shared.CursorPagination(resp.Cursor())
 
 				if full {
 					entries := make([]api.LogEntry, len(resp.Data))
@@ -86,11 +88,11 @@ func registerSearch(parent *cobra.Command, globals func() *shared.GlobalFlags) {
 							Attributes: d.Attributes.Attributes,
 						}
 					}
-					shared.WritePaginatedList(shared.ToAnySlice(entries), nil, g.Format)
+					shared.WritePaginatedList(shared.ToAnySlice(entries), pagination, g.Format)
 					return nil
 				}
 
-				shared.WritePaginatedList(shared.ToAnySlice(toCompactLogs(resp.Data)), nil, g.Format)
+				shared.WritePaginatedList(shared.ToAnySlice(toCompactLogs(resp.Data)), pagination, g.Format)
 				return nil
 			})
 		},
@@ -106,10 +108,12 @@ func registerSearch(parent *cobra.Command, globals func() *shared.GlobalFlags) {
 
 func registerTail(parent *cobra.Command, globals func() *shared.GlobalFlags) {
 	var query, source, service string
+	var interval int
+	var follow bool
 
 	cmd := &cobra.Command{
 		Use:   "tail",
-		Short: "Poll recent logs",
+		Short: "Poll recent logs (streams with --follow)",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			g := globals()
 
@@ -125,23 +129,49 @@ func registerTail(parent *cobra.Command, globals func() *shared.GlobalFlags) {
 			}
 
 			return shared.WithClient(g.Org, g.Timeout, func(ctx context.Context, client *api.Client) error {
-				now := time.Now()
-				from := now.Add(-5 * time.Minute).Format(time.RFC3339)
-				to := now.Format(time.RFC3339)
+				w := output.NewNDJSONWriter(os.Stdout)
+				from := time.Now().Add(-5 * time.Minute).Format(time.RFC3339)
+				to := time.Now().Format(time.RFC3339)
 
-				resp, err := client.SearchLogs(ctx, q, from, to, "timestamp", 20)
+				resp, err := client.SearchLogs(ctx, q, from, to, "timestamp", 20, "")
 				if err != nil {
 					return err
 				}
+				for _, c := range toCompactLogs(resp.Data) {
+					w.WriteItem(c)
+				}
 
-				shared.WritePaginatedList(shared.ToAnySlice(toCompactLogs(resp.Data)), nil, g.Format)
-				return nil
+				if !follow {
+					return nil
+				}
+
+				ticker := time.NewTicker(time.Duration(interval) * time.Second)
+				defer ticker.Stop()
+
+				for {
+					select {
+					case <-ctx.Done():
+						return nil
+					case <-ticker.C:
+						from = to
+						to = time.Now().Format(time.RFC3339)
+						resp, err = client.SearchLogs(ctx, q, from, to, "timestamp", 100, "")
+						if err != nil {
+							return err
+						}
+						for _, c := range toCompactLogs(resp.Data) {
+							w.WriteItem(c)
+						}
+					}
+				}
 			})
 		},
 	}
 	cmd.Flags().StringVar(&query, "query", "", "Log search query (required)")
 	cmd.Flags().StringVar(&source, "source", "", "Filter by source")
 	cmd.Flags().StringVar(&service, "service", "", "Filter by service")
+	cmd.Flags().BoolVarP(&follow, "follow", "f", false, "Stream continuously")
+	cmd.Flags().IntVar(&interval, "interval", 5, "Poll interval in seconds (with --follow)")
 	parent.AddCommand(cmd)
 }
 

@@ -146,6 +146,15 @@ func WriteItem(data any, format string) {
 	output.Print(data, f, true)
 }
 
+// CursorPagination builds pagination metadata from a cursor string.
+// Returns nil if cursor is empty (no more pages).
+func CursorPagination(cursor string) *output.Pagination {
+	if cursor == "" {
+		return nil
+	}
+	return &output.Pagination{HasMore: true, NextCursor: cursor}
+}
+
 // RequireFlag checks that a flag value is non-empty, writing an error to stderr if not.
 // Returns true if the value is present, false if missing (error already written).
 func RequireFlag(flag, value, hint string) bool {
