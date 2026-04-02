@@ -130,16 +130,31 @@ func buildPath(base string, params url.Values) string {
 	return base
 }
 
-func classifyHTTPError(status int, body []byte) *agenterrors.APIError {
+// extractErrorMessage tries multiple Datadog error response formats and falls
+// back to the raw body or status code so the caller always gets a useful message.
+func extractErrorMessage(status int, body []byte) string {
 	var parsed struct {
-		Errors []string `json:"errors"`
+		Errors  []string `json:"errors"`
+		Error   string   `json:"error"`
+		Message string   `json:"message"`
 	}
-	json.Unmarshal(body, &parsed)
+	if json.Unmarshal(body, &parsed) == nil {
+		switch {
+		case len(parsed.Errors) > 0 && parsed.Errors[0] != "":
+			return parsed.Errors[0]
+		case parsed.Error != "":
+			return parsed.Error
+		case parsed.Message != "":
+			return parsed.Message
+		}
+	} else if len(body) > 0 && len(body) <= 200 {
+		return fmt.Sprintf("HTTP %d: %s", status, string(body))
+	}
+	return fmt.Sprintf("HTTP %d", status)
+}
 
-	msg := fmt.Sprintf("HTTP %d", status)
-	if len(parsed.Errors) > 0 {
-		msg = parsed.Errors[0]
-	}
+func classifyHTTPError(status int, body []byte) *agenterrors.APIError {
+	msg := extractErrorMessage(status, body)
 
 	switch {
 	case status == 401:

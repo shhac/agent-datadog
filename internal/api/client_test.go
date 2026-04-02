@@ -53,6 +53,44 @@ func TestValidate(t *testing.T) {
 	}
 }
 
+func TestClassifyHTTPErrorFormats(t *testing.T) {
+	tests := []struct {
+		name    string
+		body    string
+		wantMsg string
+	}{
+		{"errors array", `{"errors":["bad query"]}`, "bad query"},
+		{"singular error", `{"error":"invalid search"}`, "invalid search"},
+		{"message field", `{"message":"something went wrong"}`, "something went wrong"},
+		{"empty errors array", `{"errors":[]}`, "HTTP 400"},
+		{"errors with empty string", `{"errors":[""]}`, "HTTP 400"},
+		{"no body", ``, "HTTP 400"},
+		{"non-json body", `Bad Request`, "HTTP 400: Bad Request"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				w.WriteHeader(400)
+				w.Write([]byte(tt.body))
+			}))
+			defer srv.Close()
+
+			client := api.NewTestClient(srv.URL+"/api", "key", "app")
+			err := client.Validate(context.Background())
+			if err == nil {
+				t.Fatal("expected error, got nil")
+			}
+			var aerr *agenterrors.APIError
+			if !errors.As(err, &aerr) {
+				t.Fatalf("expected *APIError, got %T", err)
+			}
+			if aerr.Message != tt.wantMsg {
+				t.Errorf("message = %q, want %q", aerr.Message, tt.wantMsg)
+			}
+		})
+	}
+}
+
 func TestClassifyHTTPErrorDefault(t *testing.T) {
 	for _, status := range []int{400, 409} {
 		srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
